@@ -12,7 +12,7 @@ Virtual memory & paging.
 ## Assignment
 
 - Slide: [here](https://drive.google.com/drive/folders/183djJIkGVDYmz3njkCCW2-0ZPv032fsU?usp=sharing)(ECCS email required) 
-- Date due: ***2024/07/08*** (tentative: check [here](https://github.com/ut-syspro-admin-24/assignment-8) for the latest deadline.)
+- Date due: ***2024/07/08*** (tentative: check [here](https://github.com/ut-syspro-admin-24/assignment-10) for the latest deadline.)
 
 ## How to Transfer
 
