@@ -1,0 +1,148 @@
+diff --git a/apps/Makefile b/apps/Makefile
+index db26515..fde77ee 100644
+--- a/apps/Makefile
++++ b/apps/Makefile
+@@ -19,16 +19,13 @@ all: app1 app2 app3 sh puts
+ 	@$(CC) $(CFLAGS) -c $< -o $@
+ 
+ app1: $(objs-app1)
+-	$(LD) -nostdlib -N -e main -Ttext 0x104000000 -o $@ $+
+-	#$(LD) -nostdlib -N -e main -Ttext 0xffff800000000000 -o $@ $+
++	$(LD) -nostdlib -N -e main -Ttext 0xffff800000000000 -o $@ $+
+ 
+ app2: $(objs-app2)
+-	$(LD) -nostdlib -N -e main -Ttext 0x105000000 -o $@ $+
+-	#$(LD) -nostdlib -N -e main -Ttext 0xffff800000000000 -o $@ $+
++	$(LD) -nostdlib -N -e main -Ttext 0xffff800000000000 -o $@ $+
+ 
+ app3: $(objs-app3)
+-	$(LD) -nostdlib -N -e main -Ttext 0x106000000 -o $@ $+
+-	#$(LD) -nostdlib -N -e main -Ttext 0xffff800000000000 -o $@ $+
++	$(LD) -nostdlib -N -e main -Ttext 0xffff800000000000 -o $@ $+
+ 
+ sh: $(objs-sh)
+ 	$(LD) -nostdlib -N -e main -Ttext 0xffff800000000000 -o $@ $+
+diff --git a/kernel/memory.h b/kernel/memory.h
+index d7a4ad9..40fdffc 100644
+--- a/kernel/memory.h
++++ b/kernel/memory.h
+@@ -6,6 +6,7 @@ struct App;
+ void init_virtual_memory();
+ void load_process_pagetable(struct Process *process);
+ void init_process_pagetable(struct Process *process, struct App *app);
++void copy_userspace_memory(struct Process *newproc, struct Process *proc);
+ 
+ #define USERSTACK_BOTTOM        (0xffff810000000000)
+ #define USERSTACK_TOP           (USERSTACK_BOTTOM+0x1000)
+diff --git a/kernel/process.c b/kernel/process.c
+index 07dc993..c5a7a98 100644
+--- a/kernel/process.c
++++ b/kernel/process.c
+@@ -53,6 +53,7 @@ static void free_process(struct Process *process)
+ 
+ #define EFLAGS_IF             (1 << 9)
+ 
++/*
+ static uint64_t kernel_cs(void)
+ {
+         uint64_t cs;
+@@ -70,6 +71,7 @@ static uint64_t kernel_ss(void)
+ 
+         return ss;
+ }
++*/
+ 
+ static struct Process *new_process(struct App *app)
+ {
+@@ -90,7 +92,7 @@ static struct Process *new_process(struct App *app)
+ 
+         strcpy(process->name, app->name);
+ 
+-        // init_process_pagetable(process, app);
++        init_process_pagetable(process, app);
+ 
+         stack_pointer = process->kernel_stack + PAGE_SIZE;
+         stack_pointer -= sizeof(struct TrapFrame);
+@@ -100,14 +102,14 @@ static struct Process *new_process(struct App *app)
+                 "pop  %0\n" : "=r" (rflags)
+         );
+ 
+-        ((struct TrapFrame *)stack_pointer)->cs = kernel_cs();
+-        // ((struct TrapFrame *)stack_pointer)->cs = (SEG_UCODE << 3) | DPL_USER;
++        // ((struct TrapFrame *)stack_pointer)->cs = kernel_cs();
++        ((struct TrapFrame *)stack_pointer)->cs = (SEG_UCODE << 3) | DPL_USER;
+         ((struct TrapFrame *)stack_pointer)->rflags = rflags | EFLAGS_IF;
+-        ((struct TrapFrame *)stack_pointer)->ss = kernel_ss();
+-        // ((struct TrapFrame *)stack_pointer)->ss = (SEG_UDATA << 3) | DPL_USER;
++        // ((struct TrapFrame *)stack_pointer)->ss = kernel_ss();
++        ((struct TrapFrame *)stack_pointer)->ss = (SEG_UDATA << 3) | DPL_USER;
+         ((struct TrapFrame *)stack_pointer)->rip = (uint64_t)app->entrypoint;
+-        // ((struct TrapFrame *)stack_pointer)->rsp = (uint64_t)USERSTACK_TOP;
+-        ((struct TrapFrame *)stack_pointer)->rsp = (uint64_t)stack_pointer;
++        ((struct TrapFrame *)stack_pointer)->rsp = (uint64_t)USERSTACK_TOP;
++        // ((struct TrapFrame *)stack_pointer)->rsp = (uint64_t)stack_pointer;
+ 
+         process->tf = (struct TrapFrame *)stack_pointer;
+ 
+@@ -152,10 +154,24 @@ int fork_process(struct Process *process)
+         strcpy(newproc->name, process->name);
+ 
+         // Copy user memory from process to newproc
++        copy_userspace_memory(newproc, process);
+ 
+-        // copy trapframe to newproc
++        // Make room of trapframe
++        stack_pointer = newproc->kernel_stack + PAGE_SIZE;
++        stack_pointer -= sizeof(struct TrapFrame);
++        newproc->tf = (struct TrapFrame *)stack_pointer;
++
++        // Copy trapframe to newproc
++        // 
++        // Here
++        //
++
++        // Make room of struct Context
++        stack_pointer -= sizeof(struct Context);
++        ((struct Context *)stack_pointer)->rip = (uint64_t)trapret;
+ 
+         // set stack pointer to newproc
++        newproc->rsp = (uint64_t)stack_pointer;
+ 
+         newproc->parent = process;
+         newproc->state = READY;
+@@ -199,7 +215,7 @@ static void make_app1_process(char *appname)
+         extern char _binary____apps_app1_start[];
+         app_elf_parse(&app, appname, _binary____apps_app1_start);
+ 
+-        memmove((void*)app.load_start, (void*)app.elf_program_start, app.program_size);
++        // memmove((void*)app.load_start, (void*)app.elf_program_start, app.program_size);
+ 
+         new_process(&app);
+ }
+@@ -210,7 +226,7 @@ static void make_app2_process(char *appname)
+         extern char _binary____apps_app2_start[];
+         app_elf_parse(&app, appname, _binary____apps_app2_start);
+ 
+-        memmove((void*)app.load_start, (void*)app.elf_program_start, app.program_size);
++        // memmove((void*)app.load_start, (void*)app.elf_program_start, app.program_size);
+ 
+         new_process(&app);
+ }
+@@ -221,7 +237,7 @@ static void make_app3_process(char *appname)
+         extern char _binary____apps_app3_start[];
+         app_elf_parse(&app, appname, _binary____apps_app3_start);
+ 
+-        memmove((void*)app.load_start, (void*)app.elf_program_start, app.program_size);
++        // memmove((void*)app.load_start, (void*)app.elf_program_start, app.program_size);
+ 
+         new_process(&app);
+ }
+@@ -266,7 +282,7 @@ void schedule(void) {
+         else
+                 prevsp = &current_process->rsp;
+ 
+-        // load_process_pagetable(proc);
++        load_process_pagetable(proc);
+ 
+         current_process = proc;
+ 
