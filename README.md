@@ -12,12 +12,12 @@ Virtual memory & paging.
 ## Assignment
 
 - Slide: [here](https://drive.google.com/drive/folders/1xoDMwppyna0dQaNWYj1F087QfhcSxTKQ?usp=sharing)(ECCS email required) 
-- Date due: ***2024/07/14 23:59*** (tentative: check [here](https://github.com/ut-syspro-admin-25/assignment-10) for the latest deadline.)
+- Date due: ***2025/07/14 23:59*** (tentative: check [here](https://github.com/ut-syspro-admin-25/assignment-10) for the latest deadline.)
 
 ## How to Transfer
 
 ```
-$ bash assignment-9-xxx/scripts/transfer.sh assignment-7-xxx assignment-10-xxx
+$ bash assignment-9-xxx/scripts/transfer.sh assignment-9-xxx assignment-10-xxx
 ```
 
 ## How to Build
